@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // 1. Create the instance with base configurations
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://example.com', // Fallback URL
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
   timeout: 10000, // Timeout request after 10 seconds
   headers: {
     'Content-Type': 'application/json',
@@ -11,17 +11,27 @@ const apiClient = axios.create({
 });
 
 // 2. Request Interceptor (e.g., attach Bearer Token automatically)
+
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token'); // Retrieve token from storage
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`; // Inject auth header
+    const token =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('token')
+        : null;
+  if (
+      token &&
+      !config.url?.includes('/api/auth/login') &&
+      config.headers
+    ) {
+      if (typeof config.headers.set === 'function') {
+        config.headers.set('Authorization', `Bearer ${token}`);
+      } else {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error) 
 );
 
 // 3. Response Interceptor (e.g., global error handling)

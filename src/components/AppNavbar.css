@@ -1,0 +1,202 @@
+/* ==========================================================================
+   AppNavbar – Global Navigation Bar
+   ========================================================================== */
+
+.app-navbar {
+  background-color: rgba(255, 255, 255, 0.97);
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06);
+}
+
+.app-navbar-inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 24px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Brand ── */
+.app-navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: #0f172a;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.app-navbar-brand-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #0052ff 0%, #3b82f6 100%);
+  color: #fff;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.app-navbar-brand-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+}
+
+.app-navbar-brand-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0052ff;
+  background: rgba(0, 82, 255, 0.08);
+  border: 1px solid rgba(0, 82, 255, 0.18);
+  border-radius: 6px;
+  padding: 2px 7px;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+/* ── Center Links ── */
+.app-navbar-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  justify-content: center;
+}
+
+.app-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #475569;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.app-nav-btn:hover:not(.disabled) {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.app-nav-btn.active {
+  background: rgba(0, 82, 255, 0.08);
+  color: #0052ff;
+  font-weight: 600;
+}
+
+.app-nav-btn.active .app-nav-btn-icon {
+  filter: none;
+}
+
+.app-nav-btn.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  color: #94a3b8;
+}
+
+.app-nav-btn-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.app-nav-btn-label {
+  line-height: 1;
+}
+
+/* "Sớm" badge for disabled items */
+.app-nav-soon {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #64748b;
+  background: #e2e8f0;
+  border-radius: 4px;
+  padding: 1px 5px;
+  line-height: 14px;
+}
+
+/* Active underline indicator */
+.app-nav-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 2px;
+  background: #0052ff;
+  border-radius: 2px;
+}
+
+/* ── Right Actions ── */
+.app-navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.app-nav-logout {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #475569;
+  text-decoration: none;
+  padding: 7px 14px;
+  border-radius: 8px;
+  transition: background 0.15s, color 0.15s;
+  border: 1px solid #e2e8f0;
+}
+
+.app-nav-logout:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .app-navbar-inner {
+    padding: 0 14px;
+    height: 52px;
+  }
+
+  .app-navbar-brand-badge {
+    display: none;
+  }
+
+  .app-nav-btn-label {
+    display: none;
+  }
+
+  .app-nav-btn {
+    padding: 8px 10px;
+  }
+
+  .app-nav-soon {
+    display: none;
+  }
+}

@@ -1,0 +1,253 @@
+/* ==========================================================================
+   TaskFlow Delete Project Confirmation Stylesheet
+   ========================================================================== */
+
+.delete-project-container {
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--pj-bg, #f8fafc);
+  font-family: var(--pj-font-family, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  color: var(--pj-text-main, #0f172a);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Navbar */
+.delete-project-navbar {
+  background-color: rgba(255, 255, 255, 0.95);
+  border-bottom: 1px solid var(--pj-border, #e2e8f0);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(8px);
+}
+
+.delete-project-navbar-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.delete-project-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--pj-text-main, #0f172a);
+}
+
+.delete-project-brand-icon {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #0052ff 0%, #3b82f6 100%);
+  color: #ffffff;
+  border-radius: var(--pj-radius-md, 10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  box-shadow: 0 2px 6px rgba(0, 82, 255, 0.25);
+}
+
+.delete-project-brand-name {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Main Confirmation Area */
+.delete-project-main {
+  flex: 1;
+  max-width: 680px;
+  width: 100%;
+  margin: 60px auto;
+  padding: 0 24px;
+  box-sizing: border-box;
+}
+
+/* Lookup bar if accessed without ID */
+.delete-lookup-card {
+  background-color: var(--pj-surface, #ffffff);
+  border: 1px solid var(--pj-border, #e2e8f0);
+  border-radius: var(--pj-radius-lg, 16px);
+  padding: 20px;
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  box-shadow: var(--pj-shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+}
+
+.delete-lookup-input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid var(--pj-border, #e2e8f0);
+  border-radius: var(--pj-radius-md, 10px);
+  font-size: 14px;
+}
+
+.btn-delete-lookup {
+  padding: 10px 18px;
+  background-color: var(--pj-primary, #0052ff);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--pj-radius-md, 10px);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Main Danger Card */
+.delete-confirm-card {
+  background-color: var(--pj-surface, #ffffff);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: var(--pj-radius-lg, 16px);
+  box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.08), 0 8px 10px -6px rgba(15, 23, 42, 0.04);
+  overflow: hidden;
+}
+
+.delete-card-banner {
+  background-color: #fef2f2;
+  border-bottom: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 24px 32px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.delete-warning-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.delete-banner-text h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: #991b1b;
+  margin: 0 0 4px 0;
+}
+
+.delete-banner-text p {
+  font-size: 14px;
+  color: #b91c1c;
+  margin: 0;
+}
+
+/* Project preview details */
+.delete-preview-content {
+  padding: 32px;
+}
+
+.delete-preview-box {
+  background-color: var(--pj-bg, #f8fafc);
+  border: 1px solid var(--pj-border, #e2e8f0);
+  border-radius: var(--pj-radius-md, 10px);
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.delete-preview-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--pj-text-main, #0f172a);
+  margin: 0 0 8px 0;
+}
+
+.delete-preview-desc {
+  font-size: 14px;
+  color: var(--pj-text-secondary, #475569);
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.delete-preview-meta {
+  display: flex;
+  gap: 20px;
+  font-size: 13px;
+  color: var(--pj-text-muted, #94a3b8);
+}
+
+.delete-preview-meta strong {
+  color: var(--pj-text-secondary, #475569);
+}
+
+.delete-consequence-note {
+  font-size: 14px;
+  color: #64748b;
+  background-color: #fff1f2;
+  border-left: 4px solid #f43f5e;
+  padding: 12px 16px;
+  border-radius: 0 var(--pj-radius-sm, 6px) var(--pj-radius-sm, 6px) 0;
+  margin-bottom: 28px;
+  line-height: 1.5;
+}
+
+/* Actions */
+.delete-actions-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn-delete-action {
+  padding: 12px 24px;
+  border-radius: var(--pj-radius-md, 10px);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+}
+
+.btn-delete-action.cancel {
+  background-color: var(--pj-bg, #f8fafc);
+  color: var(--pj-text-secondary, #475569);
+  border: 1px solid var(--pj-border, #e2e8f0);
+}
+
+.btn-delete-action.cancel:hover {
+  background-color: var(--pj-border-hover, #cbd5e1);
+  color: var(--pj-text-main, #0f172a);
+}
+
+.btn-delete-action.danger {
+  background-color: #dc2626;
+  color: #ffffff;
+  box-shadow: 0 2px 4px rgba(220, 38, 38, 0.2);
+}
+
+.btn-delete-action.danger:hover {
+  background-color: #b91c1c;
+  transform: translateY(-1px);
+}
+
+/* Alerts */
+.delete-alert {
+  padding: 16px 20px;
+  border-radius: var(--pj-radius-md, 10px);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.delete-alert.success {
+  background-color: rgba(16, 185, 129, 0.12);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.delete-alert.error {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #991b1b;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+}
