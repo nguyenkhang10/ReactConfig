@@ -97,7 +97,7 @@ function GetProject() {
             value={lookupId}
             onChange={(e) => setLookupId(e.target.value)}
           />
-          <button type="button" className="btn-lookup" disabled={!project} onClick={() => { navigate(`../projects/${project.id}/tasks`) }}>
+          <button type="button" className="btn-lookup" disabled={!project} onClick={() => { if (project) navigate(`../projects/${project.id}/tasks`); }}>
             Xem chi tiết
           </button>
         </form>

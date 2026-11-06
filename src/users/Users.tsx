@@ -1,36 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { getUsers } from '../api/userApi';
-import type { User } from '../api/userApi';
 import AppNavbar from '../components/AppNavbar';
 import './users.css';
 
 function Users() {
   const navigate = useNavigate();
 
-  const [users, setUsers] = useState<User[] | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        setLoading(true);
-        setErrorMessage(null);
-        const data = await getUsers();
-        setUsers(data);
-      } catch (error: any) {
-        console.error('Error fetching users:', error);
-        setErrorMessage('Không thể tải danh sách người dùng. Vui lòng kiểm tra kết nối tới máy chủ.');
-        setUsers([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUsers();
-  }, []);
+  const { data: users, isLoading, isError } = useQuery({
+    queryKey: ['users'],
+    queryFn: getUsers,
+  });
 
   const getInitials = (name?: string, fallback = 'U') => {
     if (!name || !name.trim()) return fallback.substring(0, 2).toUpperCase();
@@ -49,16 +32,14 @@ function Users() {
     }
   };
 
-  const filteredUsers = users
-    ? users.filter(
-        (u) =>
-          u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          u.role?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          u.status?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
-    : [];
+  const filteredUsers = (users ?? []).filter(
+    (u) =>
+      u.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.role?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.status?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="users-container">
@@ -117,14 +98,14 @@ function Users() {
         </div>
 
         {/* Error notification */}
-        {errorMessage && (
+        {isError && (
           <div className="user-alert error">
-            ⚠️ {errorMessage}
+            ⚠️ Không thể tải danh sách người dùng. Vui lòng kiểm tra kết nối tới máy chủ.
           </div>
         )}
 
         {/* Loading State */}
-        {loading ? (
+        {isLoading ? (
           <div className="users-table-wrapper" style={{ padding: '48px', textAlign: 'center' }}>
             <div style={{ fontSize: '32px', marginBottom: '10px' }}>⏳</div>
             <div style={{ fontWeight: 600, color: '#475569' }}>Đang tải danh sách người dùng...</div>

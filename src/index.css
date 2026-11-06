@@ -106,3 +106,10 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+.form-input.has-error,
+.form-select.has-error,
+.update-form-input.has-error,
+.update-form-select.has-error {
+  border-color: #ef4444;
+}

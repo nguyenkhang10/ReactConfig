@@ -1,6 +1,7 @@
 /* Login.css */
 
-html, body {
+html,
+body {
   margin: 0;
   padding: 0;
   background-color: #ffffff !important;
@@ -186,4 +187,24 @@ html, body {
 
 .signup-link:hover {
   text-decoration: underline;
+}
+
+.form-input.has-error {
+  border-color: #ef4444;
+}
+
+.form-error {
+  display: block;
+  margin-top: 6px;
+  font-size: 13px;
+  color: #ef4444;
+}
+
+.form-error-banner {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 14px;
 }

@@ -25,6 +25,7 @@ function DeleteProject() {
     mutationFn: deleteProject,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
       setSuccessMessage(`Dự án #${routeId} đã được xóa thành công.`);
       setTimeout(() => navigate('/projects'), 1500);
     },

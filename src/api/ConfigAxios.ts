@@ -1,8 +1,10 @@
 import axios from 'axios';
+import { store } from '../store/store';
+import { logout } from '../store/authSlice';
 
 // 1. Create the instance with base configurations
 const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080',
+  baseURL: import.meta.env.VITE_API_BASE_URL || '',
   timeout: 10000, // Timeout request after 10 seconds
   headers: {
     'Content-Type': 'application/json',
@@ -14,10 +16,7 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   (config) => {
-    const token =
-      typeof window !== 'undefined'
-        ? localStorage.getItem('token')
-        : null;
+    const token = store.getState().auth.token;
   if (
       token &&
       !config.url?.includes('/api/auth/login') &&
@@ -46,7 +45,7 @@ apiClient.interceptors.response.use(
       switch (error.response.status) {
         case 401:
           console.error('Unauthorized! Redirecting to login...');
-          // Optional: clear tokens, redirect to /login
+          store.dispatch(logout());
           break;
         case 403:
           console.error('Forbidden access.');

@@ -1,5 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import './AppNavbar.css';
+import { useAppDispatch } from '../store/hooks';
+import { logout } from '../store/authSlice';
 
 interface AppNavbarProps {
   /** Override the right-side slot (e.g. Đăng xuất button). Defaults to logout link. */
@@ -16,6 +18,7 @@ const NAV_ITEMS = [
 function AppNavbar({ rightSlot }: AppNavbarProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
+  const dispatch = useAppDispatch();
 
   /** Returns true when the current path starts with the nav item's path */
   const isActive = (path: string) => {
@@ -56,9 +59,16 @@ function AppNavbar({ rightSlot }: AppNavbarProps) {
         {/* Right Actions */}
         <div className="app-navbar-actions">
           {rightSlot ?? (
-            <a href="/" className="app-nav-logout">
+            <button
+              type="button"
+              className="app-nav-logout"
+              onClick={() => {
+                dispatch(logout());
+                navigate('/');
+              }}
+            >
               Đăng xuất
-            </a>
+            </button>
           )}
         </div>
       </div>

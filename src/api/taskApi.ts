@@ -3,7 +3,7 @@ import apiClient from './ConfigAxios';
 // Base API URL configuration
 export const TASK_API_BASE_URL = import.meta.env.VITE_API_BASE_URL
   ? `${import.meta.env.VITE_API_BASE_URL}/api`
-  : 'http://localhost:8080/api';
+  : '/api';
 
 export type TaskStatus = 'TODO' | 'IN_PROGRESS' | 'COMPLETED';
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';

@@ -13,6 +13,8 @@ function Projects() {
     useQuery({
       queryKey: ["projects"],
       queryFn: getProjects,
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: true,
     });
 
 
@@ -102,9 +104,6 @@ function Projects() {
             <h3 className="empty-state-title">Không tải được dự án</h3>
             <p className="empty-state-desc">Vui lòng thử lại sau.</p>
           </div>
-        ) : filteredProjects.length > 0 ? (
-          /* Cards Grid */
-          <ul className="projects-grid"></ul>
         ) : filteredProjects.length > 0 ? (
           /* Cards Grid */
           <ul className="projects-grid">

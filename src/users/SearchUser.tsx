@@ -1,7 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData } from '@tanstack/react-query';
 import { searchUsers } from '../api/userApi';
-import type { User, UserRole } from '../api/userApi';
+import type { UserRole } from '../api/userApi';
 import './users.css';
 
 const ROLE_OPTIONS: Array<{ label: string; value: string }> = [
@@ -11,53 +13,49 @@ const ROLE_OPTIONS: Array<{ label: string; value: string }> = [
   { label: 'MEMBER (Thành viên)', value: 'MEMBER' },
 ];
 
+interface SearchFilters {
+  keyword: string;
+  role: string;
+}
+
 function SearchUser() {
   const navigate = useNavigate();
 
+  // Live input state (typing does not fire requests)
   const [keyword, setKeyword] = useState<string>('');
   const [role, setRole] = useState<string>('');
-  const [users, setUsers] = useState<User[] | null>(null);
-  const [loading, setLoading] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const fetchSearchResults = useCallback(async (searchRole: string, searchKeyword: string) => {
-    setLoading(true);
-    setErrorMessage(null);
-    try {
-      const data = await searchUsers({
-        role: searchRole || undefined,
-        keyword: searchKeyword.trim() || undefined,
-      });
-      setUsers(data);
-    } catch (err: any) {
-      console.error('Error searching users:', err);
-      setErrorMessage('Không thể tìm kiếm người dùng. Vui lòng thử lại sau.');
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // Applied filters — only these go in the query key
+  const [appliedFilters, setAppliedFilters] = useState<SearchFilters>({
+    keyword: '',
+    role: '',
+  });
 
-  // Initial load
-  useEffect(() => {
-    fetchSearchResults('', '');
-  }, [fetchSearchResults]);
+  const { data: users, isLoading, isFetching, isError } = useQuery({
+    queryKey: ['users', appliedFilters],
+    queryFn: () =>
+      searchUsers({
+        role: appliedFilters.role || undefined,
+        keyword: appliedFilters.keyword.trim() || undefined,
+      }),
+    placeholderData: keepPreviousData,
+  });
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    fetchSearchResults(role, keyword);
+    setAppliedFilters({ keyword, role });
   };
 
   const handleReset = () => {
     setKeyword('');
     setRole('');
-    fetchSearchResults('', '');
+    setAppliedFilters({ keyword: '', role: '' });
   };
 
   const handleQuickRoleClick = (roleValue: string) => {
     const nextRole = role === roleValue ? '' : roleValue;
     setRole(nextRole);
-    fetchSearchResults(nextRole, keyword);
+    setAppliedFilters({ keyword, role: nextRole });
   };
 
   const getInitials = (name?: string, fallback = 'U') => {
@@ -186,18 +184,18 @@ function SearchUser() {
               <button
                 type="submit"
                 className="btn-new-user"
-                disabled={loading}
+                disabled={isFetching}
               >
-                {loading ? 'Đang tìm...' : 'Tìm kiếm'}
+                {isFetching ? 'Đang tìm...' : 'Tìm kiếm'}
               </button>
             </div>
           </form>
         </div>
 
         {/* Error notification */}
-        {errorMessage && (
+        {isError && (
           <div className="user-alert error">
-            ⚠️ {errorMessage}
+            ⚠️ Không thể tìm kiếm người dùng. Vui lòng thử lại sau.
           </div>
         )}
 
@@ -206,14 +204,14 @@ function SearchUser() {
           <div style={{ fontSize: '15px', color: '#475569', fontWeight: 500 }}>
             Kết quả:{' '}
             <strong style={{ color: '#0052ff' }}>
-              {users !== null ? users.length : '...'}
+              {users !== undefined ? users.length : '...'}
             </strong>{' '}
             người dùng
           </div>
         </div>
 
         {/* Results State */}
-        {loading && users === null ? (
+        {isLoading && users === undefined ? (
           <div className="users-empty-state">
             <div className="empty-user-icon">⏳</div>
             <h3 className="empty-user-title">Đang tải kết quả tìm kiếm...</h3>
@@ -300,8 +298,8 @@ function SearchUser() {
             <h3 className="empty-user-title">Không tìm thấy người dùng</h3>
             <p className="empty-user-desc">
               Không có người dùng nào khớp với tiêu chí tìm kiếm
-              {keyword ? ` từ khóa "${keyword}"` : ''}
-              {role ? ` vai trò "${role}"` : ''}.
+              {appliedFilters.keyword ? ` từ khóa "${appliedFilters.keyword}"` : ''}
+              {appliedFilters.role ? ` vai trò "${appliedFilters.role}"` : ''}.
             </p>
             <button
               type="button"

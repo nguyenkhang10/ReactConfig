@@ -1,120 +1,46 @@
-import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createUser } from '../api/userApi';
-import type { CreateUserRequest, UserRole, UserStatus } from '../api/userApi';
 import './users.css';
-
-interface FormErrors {
-  username?: string;
-  email?: string;
-  fullName?: string;
-  password?: string;
-  role?: string;
-  status?: string;
-}
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { createUserSchema, type CreateUserForm } from '../schemas/userSchema';
 
 function CreateUser() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [formData, setFormData] = useState<CreateUserRequest>({
-    username: '',
-    email: '',
-    fullName: '',
-    password: '',
-    role: 'MEMBER',
-    status: 'ACTIVE',
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<CreateUserForm>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: {
+      username: '',
+      email: '',
+      fullName: '',
+      password: '',
+      role: 'MEMBER',
+      status: 'ACTIVE',
+    },
   });
 
-  const [errors, setErrors] = useState<FormErrors>({});
-  const [submitting, setSubmitting] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const validateForm = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    // Validate username: required, min 3, max 60
-    if (!formData.username.trim()) {
-      newErrors.username = 'Tên tài khoản (username) là bắt buộc.';
-    } else if (formData.username.trim().length < 3) {
-      newErrors.username = 'Tên tài khoản phải có ít nhất 3 ký tự.';
-    } else if (formData.username.trim().length > 60) {
-      newErrors.username = 'Tên tài khoản không được vượt quá 60 ký tự.';
-    }
-
-    // Validate email: required, email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!formData.email.trim()) {
-      newErrors.email = 'Email là bắt buộc.';
-    } else if (!emailRegex.test(formData.email.trim())) {
-      newErrors.email = 'Định dạng email không hợp lệ.';
-    }
-
-    // Validate fullName: max 120
-    if (formData.fullName && formData.fullName.length > 120) {
-      newErrors.fullName = 'Họ và tên không được vượt quá 120 ký tự.';
-    }
-
-    // Validate password: required, min 6
-    if (!formData.password) {
-      newErrors.password = 'Mật khẩu là bắt buộc.';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Mật khẩu phải có ít nhất 6 ký tự.';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
-    // Clear individual field error on change
-    if (errors[name as keyof FormErrors]) {
-      setErrors((prev) => ({
-        ...prev,
-        [name]: undefined,
-      }));
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrorMessage(null);
-
-    if (!validateForm()) {
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      const payload: CreateUserRequest = {
-        username: formData.username.trim(),
-        email: formData.email.trim(),
-        fullName: formData.fullName ? formData.fullName.trim() : '',
-        password: formData.password,
-        role: formData.role as UserRole,
-        status: formData.status as UserStatus,
-      };
-
-      await createUser(payload);
+  const createMutation = useMutation({
+    mutationFn: createUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
       navigate('/users');
-    } catch (error: any) {
-      console.error('Error creating user:', error);
-      const backendMsg =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        'Có lỗi xảy ra khi tạo người dùng. Vui lòng kiểm tra lại thông tin.';
-      setErrorMessage(backendMsg);
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+  });
+
+  const onSubmit = (data: CreateUserForm) => createMutation.mutate(data);
+
+  const errorMessage = createMutation.isError
+    ? (createMutation.error as any)?.response?.data?.message ||
+      (createMutation.error as any)?.response?.data?.error ||
+      'Có lỗi xảy ra khi tạo người dùng. Vui lòng kiểm tra lại thông tin.'
+    : null;
 
   return (
     <div className="users-container">
@@ -157,7 +83,7 @@ function CreateUser() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
             {/* Username & Email Row */}
             <div className="user-form-row">
               <div className="user-form-group">
@@ -165,15 +91,12 @@ function CreateUser() {
                 <input
                   type="text"
                   id="username"
-                  name="username"
                   placeholder="Nhập tên đăng nhập (3 - 60 ký tự)"
                   className={`user-form-input ${errors.username ? 'error' : ''}`}
-                  value={formData.username}
-                  onChange={handleChange}
-                  required
+                  {...register('username')}
                 />
                 {errors.username && (
-                  <div className="user-field-error">⚠️ {errors.username}</div>
+                  <div className="user-field-error">⚠️ {errors.username.message}</div>
                 )}
               </div>
 
@@ -182,15 +105,12 @@ function CreateUser() {
                 <input
                   type="email"
                   id="email"
-                  name="email"
                   placeholder="example@taskflow.com"
                   className={`user-form-input ${errors.email ? 'error' : ''}`}
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
+                  {...register('email')}
                 />
                 {errors.email && (
-                  <div className="user-field-error">⚠️ {errors.email}</div>
+                  <div className="user-field-error">⚠️ {errors.email.message}</div>
                 )}
               </div>
             </div>
@@ -202,14 +122,12 @@ function CreateUser() {
                 <input
                   type="text"
                   id="fullName"
-                  name="fullName"
                   placeholder="Nguyễn Văn A (tối đa 120 ký tự)"
                   className={`user-form-input ${errors.fullName ? 'error' : ''}`}
-                  value={formData.fullName}
-                  onChange={handleChange}
+                  {...register('fullName')}
                 />
                 {errors.fullName && (
-                  <div className="user-field-error">⚠️ {errors.fullName}</div>
+                  <div className="user-field-error">⚠️ {errors.fullName.message}</div>
                 )}
               </div>
 
@@ -218,15 +136,12 @@ function CreateUser() {
                 <input
                   type="password"
                   id="password"
-                  name="password"
                   placeholder="Tối thiểu 6 ký tự"
                   className={`user-form-input ${errors.password ? 'error' : ''}`}
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
+                  {...register('password')}
                 />
                 {errors.password && (
-                  <div className="user-field-error">⚠️ {errors.password}</div>
+                  <div className="user-field-error">⚠️ {errors.password.message}</div>
                 )}
               </div>
             </div>
@@ -237,29 +152,31 @@ function CreateUser() {
                 <label htmlFor="role">Vai trò (Role) (*):</label>
                 <select
                   id="role"
-                  name="role"
                   className="user-form-select"
-                  value={formData.role}
-                  onChange={handleChange}
+                  {...register('role')}
                 >
                   <option value="MEMBER">MEMBER (Thành viên)</option>
                   <option value="MANAGER">MANAGER (Quản lý)</option>
                   <option value="ADMIN">ADMIN (Quản trị viên)</option>
                 </select>
+                {errors.role && (
+                  <div className="user-field-error">⚠️ {errors.role.message}</div>
+                )}
               </div>
 
               <div className="user-form-group">
                 <label htmlFor="status">Trạng thái (*):</label>
                 <select
                   id="status"
-                  name="status"
                   className="user-form-select"
-                  value={formData.status}
-                  onChange={handleChange}
+                  {...register('status')}
                 >
                   <option value="ACTIVE">ACTIVE (Hoạt động)</option>
                   <option value="INACTIVE">INACTIVE (Không hoạt động)</option>
                 </select>
+                {errors.status && (
+                  <div className="user-field-error">⚠️ {errors.status.message}</div>
+                )}
               </div>
             </div>
 
@@ -269,16 +186,16 @@ function CreateUser() {
                 type="button"
                 className="btn-secondary-user"
                 onClick={() => navigate('/users')}
-                disabled={submitting}
+                disabled={createMutation.isPending}
               >
                 Hủy bỏ
               </button>
               <button
                 type="submit"
                 className="btn-new-user"
-                disabled={submitting}
+                disabled={createMutation.isPending}
               >
-                {submitting ? 'Đang tạo...' : '+ Tạo người dùng'}
+                {createMutation.isPending ? 'Đang tạo...' : '+ Tạo người dùng'}
               </button>
             </div>
           </form>

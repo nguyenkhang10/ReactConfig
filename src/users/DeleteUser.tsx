@@ -1,81 +1,61 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getUserById, deleteUser } from '../api/userApi';
-import type { User } from '../api/userApi';
 import './users.css';
 
 function DeleteUser() {
   const { id: routeId } = useParams<{ id?: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [userId, setUserId] = useState<string>(routeId || '');
   const [inputLookupId, setInputLookupId] = useState<string>(routeId || '');
-  const [user, setUser] = useState<User | null>(null);
-
-  const [loading, setLoading] = useState<boolean>(false);
-  const [deleting, setDeleting] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const fetchUserForConfirmation = useCallback(async (id: string | number) => {
-    if (!id) return;
-    setLoading(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-    try {
-      const data = await getUserById(id);
-      setUser(data);
-      setUserId(String(id));
-    } catch (err: any) {
-      console.error('Error fetching user to delete:', err);
-      if (err?.response?.status === 404) {
-        setErrorMessage(`Không tìm thấy người dùng với ID #${id}.`);
-      } else {
-        setErrorMessage('Không thể tải thông tin người dùng. Vui lòng thử lại.');
-      }
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  // READ: load user to confirm
+  const { data: user, isLoading, error: queryError } = useQuery({
+    queryKey: ['user', routeId],
+    queryFn: () => getUserById(routeId!),
+    enabled: !!routeId,
+    retry: false,
+  });
 
-  useEffect(() => {
-    if (routeId) {
-      fetchUserForConfirmation(routeId);
-    }
-  }, [routeId, fetchUserForConfirmation]);
+  // WRITE: delete user
+  const deleteMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setSuccessMessage(`Người dùng #${routeId} đã được xóa thành công.`);
+      setTimeout(() => {
+        navigate('/users');
+      }, 1500);
+    },
+  });
 
   const handleLookupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputLookupId.trim()) {
       navigate(`/users/delete/${inputLookupId.trim()}`);
-      fetchUserForConfirmation(inputLookupId.trim());
     }
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!userId) return;
-
-    setDeleting(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    try {
-      await deleteUser(userId);
-      setSuccessMessage(`Người dùng #${userId} đã được xóa thành công.`);
-      setUser(null);
-      setTimeout(() => {
-        navigate('/users');
-      }, 1500);
-    } catch (err: any) {
-      console.error('Error deleting user:', err);
-      setErrorMessage(
-        err?.response?.data?.message || 'Có lỗi xảy ra khi xóa người dùng. Vui lòng thử lại.'
-      );
-    } finally {
-      setDeleting(false);
-    }
+  const handleDeleteConfirm = () => {
+    if (!routeId) return;
+    deleteMutation.mutate(routeId);
   };
+
+  // Combine errors into one message
+  let errorMessage: string | null = null;
+  if (deleteMutation.isError) {
+    errorMessage =
+      (deleteMutation.error as any)?.response?.data?.message ||
+      'Có lỗi xảy ra khi xóa người dùng. Vui lòng thử lại.';
+  } else if (queryError) {
+    errorMessage =
+      (queryError as any)?.response?.status === 404
+        ? `Không tìm thấy người dùng với ID #${routeId}.`
+        : 'Không thể tải thông tin người dùng. Vui lòng thử lại.';
+  }
 
   return (
     <div className="delete-user-container">
@@ -132,13 +112,13 @@ function DeleteUser() {
         {successMessage && <div className="user-alert success">✅ {successMessage}</div>}
         {errorMessage && <div className="user-alert error">⚠️ {errorMessage}</div>}
 
-        {loading && (
+        {isLoading && (
           <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
             ⏳ Đang tải thông tin người dùng...
           </div>
         )}
 
-        {!loading && user && (
+        {!isLoading && user && !deleteMutation.isSuccess && (
           <div className="delete-user-card">
             <div className="delete-user-banner">
               <div className="delete-user-icon">⚠️</div>
@@ -185,7 +165,7 @@ function DeleteUser() {
                   type="button"
                   className="btn-secondary-user"
                   onClick={() => navigate('/users')}
-                  disabled={deleting}
+                  disabled={deleteMutation.isPending}
                 >
                   Hủy bỏ
                 </button>
@@ -194,9 +174,9 @@ function DeleteUser() {
                   className="btn-user-action delete"
                   style={{ padding: '10px 20px', fontSize: '14px' }}
                   onClick={handleDeleteConfirm}
-                  disabled={deleting}
+                  disabled={deleteMutation.isPending}
                 >
-                  {deleting ? 'Đang xóa...' : '🗑️ Xác nhận xóa người dùng'}
+                  {deleteMutation.isPending ? 'Đang xóa...' : '🗑️ Xác nhận xóa người dùng'}
                 </button>
               </div>
             </div>

@@ -1,79 +1,75 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getTaskById, updateTask } from '../api/taskApi';
-import type { TaskPriority, TaskStatus } from '../api/taskApi';
+import type { TaskRequestInput } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
-import type { User } from '../api/userApi';
 import '../projects/updateProject.css';
 import './tasks.css';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { taskSchema, type TaskForm } from '../schemas/taskSchema';
 
 function UpdateTask() {
   const { projectId, taskId: routeTaskId } = useParams<{ projectId?: string; taskId?: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [taskId, setTaskId] = useState<string>(routeTaskId || '');
   const [manualIdInput, setManualIdInput] = useState<string>(routeTaskId || '');
-  const [currentProjectId, setCurrentProjectId] = useState<string>(projectId || '');
-
-  const [title, setTitle] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
-  const [status, setStatus] = useState<TaskStatus>('TODO');
-  const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
-  const [handlerId, setHandlerId] = useState<string>('');
-  const [creatorId, setCreatorId] = useState<string>('');
-  const [users, setUsers] = useState<User[]>([]);
-
-  const [loading, setLoading] = useState<boolean>(false);
-  const [submitting, setSubmitting] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const userList = await getUsers();
-        setUsers(userList);
-      } catch (err) {
-        console.error('Error fetching users in UpdateTask:', err);
-      }
-    };
-    fetchUsers();
-  }, []);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchTask = async (id: string) => {
-      setLoading(true);
-      setErrorMessage(null);
-      try {
-        const task = await getTaskById(id);
-        if (task) {
-          setTitle(task.title || '');
-          setDescription(task.description || '');
-          setStatus((task.status as TaskStatus) || 'TODO');
-          setPriority((task.priority as TaskPriority) || 'MEDIUM');
-          setHandlerId(task.handlerId !== null && task.handlerId !== undefined ? String(task.handlerId) : '');
-          setCreatorId(task.creatorId !== null && task.creatorId !== undefined ? String(task.creatorId) : '');
-          if (task.projectId) {
-            setCurrentProjectId(String(task.projectId));
-          }
-          setTaskId(String(id));
-        }
-      } catch (err: any) {
-        console.error('Error fetching task by id:', err);
-        if (err?.response?.status === 404) {
-          setErrorMessage(`Không tìm thấy nhiệm vụ với ID #${id}.`);
-        } else {
-          setErrorMessage('Không thể tải thông tin nhiệm vụ. Vui lòng kiểm tra lại ID.');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
+  // READ: load task data
+  const { data: taskData, isLoading, error: queryError } = useQuery({
+    queryKey: ['task', routeTaskId],
+    queryFn: () => getTaskById(routeTaskId!),
+    enabled: !!routeTaskId,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
 
-    if (routeTaskId) {
-      fetchTask(routeTaskId);
-    }
-  }, [routeTaskId]);
+  const currentProjectId = taskData?.projectId ? String(taskData.projectId) : projectId || '';
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<TaskForm>({
+    resolver: zodResolver(taskSchema),
+    values: taskData && {
+      title: taskData.title ?? '',
+      description: taskData.description ?? '',
+      status: taskData.status ?? 'TODO',
+      priority: taskData.priority ?? 'MEDIUM',
+      handlerId: taskData.handlerId != null ? String(taskData.handlerId) : '',
+      creatorId: taskData.creatorId != null ? String(taskData.creatorId) : '',
+    },
+  });
+
+  // READ: load users for dropdown
+  const { data: users = [], isLoading: usersLoading } = useQuery({
+    queryKey: ['users'],
+    queryFn: getUsers,
+  });
+
+  // WRITE: update task
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: TaskRequestInput }) =>
+      updateTask(id, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      queryClient.invalidateQueries({ queryKey: ['task', variables.id] });
+      setSuccessMessage('Cập nhật nhiệm vụ thành công!');
+      setTimeout(() => {
+        if (currentProjectId) {
+          navigate(`/projects/${currentProjectId}/tasks`);
+        } else {
+          navigate('/projects');
+        }
+      }, 1000);
+    },
+  });
+
+  const taskId = routeTaskId || '';
 
   const handleManualLoad = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,50 +80,34 @@ function UpdateTask() {
       } else {
         navigate(`/tasks/edit/${cleanId}`);
       }
-      setTaskId(cleanId);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!taskId) {
-      setErrorMessage('Chưa xác định ID nhiệm vụ để cập nhật.');
-      return;
-    }
-
-    setSubmitting(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    const updatedPayload = {
-      title: title.trim(),
-      description: description.trim(),
-      status,
-      priority,
-      projectId: currentProjectId || undefined,
-      creatorId: creatorId.trim() || undefined,
-      handlerId: handlerId.trim() || undefined,
-    };
-
-    try {
-      await updateTask(taskId, updatedPayload);
-      setSuccessMessage('Cập nhật nhiệm vụ thành công!');
-      setTimeout(() => {
-        if (currentProjectId) {
-          navigate(`/projects/${currentProjectId}/tasks`);
-        } else {
-          navigate('/projects');
-        }
-      }, 1000);
-    } catch (err: any) {
-      console.error('Error updating task:', err);
-      setErrorMessage(
-        err?.response?.data?.message || 'Có lỗi xảy ra khi cập nhật nhiệm vụ. Vui lòng thử lại.'
-      );
-    } finally {
-      setSubmitting(false);
-    }
+  const onSubmit = (data: TaskForm) => {
+    if (!taskId) return;
+    updateMutation.mutate({
+      id: taskId,
+      data: {
+        ...data,
+        projectId: currentProjectId || undefined,
+        creatorId: data.creatorId || undefined,
+        handlerId: data.handlerId || undefined,
+      },
+    });
   };
+
+  // Derive error message
+  let errorMessage: string | null = null;
+  if (updateMutation.isError) {
+    errorMessage =
+      (updateMutation.error as any)?.response?.data?.message ||
+      'Có lỗi xảy ra khi cập nhật nhiệm vụ. Vui lòng thử lại.';
+  } else if (queryError) {
+    errorMessage =
+      (queryError as any)?.response?.status === 404
+        ? `Không tìm thấy nhiệm vụ với ID #${routeTaskId}.`
+        : 'Không thể tải thông tin nhiệm vụ. Vui lòng kiểm tra lại ID.';
+  }
 
   return (
     <div className="update-projects-container">
@@ -172,23 +152,22 @@ function UpdateTask() {
       {successMessage && <div className="update-alert success">✅ {successMessage}</div>}
       {errorMessage && <div className="update-alert error">⚠️ {errorMessage}</div>}
 
-      {loading ? (
+      {isLoading || usersLoading ? (
         <div style={{ textAlign: 'center', padding: '40px 0', color: '#64748b' }}>
           ⏳ Đang tải dữ liệu nhiệm vụ...
         </div>
       ) : (
-        <form className="update-projects-form" onSubmit={handleSubmit}>
+        <form className="update-projects-form" onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="update-form-group">
             <label htmlFor="taskTitle">Tiêu Đề Nhiệm Vụ (*):</label>
             <input
               type="text"
               id="taskTitle"
               placeholder="Nhập tiêu đề nhiệm vụ"
-              className="update-form-input"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
+              className={`update-form-input ${errors.title ? 'has-error' : ''}`}
+              {...register('title')}
             />
+            {errors.title && <span className="form-error">{errors.title.message}</span>}
           </div>
 
           <div className="update-form-group">
@@ -196,10 +175,10 @@ function UpdateTask() {
             <textarea
               id="taskDescription"
               placeholder="Nhập mô tả nhiệm vụ"
-              className="update-form-textarea"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              className={`update-form-textarea ${errors.description ? 'has-error' : ''}`}
+              {...register('description')}
             />
+            {errors.description && <span className="form-error">{errors.description.message}</span>}
           </div>
 
           <div className="update-dates-row">
@@ -207,28 +186,28 @@ function UpdateTask() {
               <label htmlFor="taskStatus">Trạng Thái:</label>
               <select
                 id="taskStatus"
-                className="update-form-select"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as TaskStatus)}
+                className={`update-form-select ${errors.status ? 'has-error' : ''}`}
+                {...register('status')}
               >
                 <option value="TODO">TODO (Cần làm)</option>
                 <option value="IN_PROGRESS">IN_PROGRESS (Đang thực hiện)</option>
                 <option value="COMPLETED">COMPLETED (Đã hoàn thành)</option>
               </select>
+              {errors.status && <span className="form-error">{errors.status.message}</span>}
             </div>
 
             <div className="update-form-group">
               <label htmlFor="taskPriority">Mức Ưu Tiên:</label>
               <select
                 id="taskPriority"
-                className="update-form-select"
-                value={priority}
-                onChange={(e) => setPriority(e.target.value as TaskPriority)}
+                className={`update-form-select ${errors.priority ? 'has-error' : ''}`}
+                {...register('priority')}
               >
                 <option value="LOW">LOW (Thấp)</option>
                 <option value="MEDIUM">MEDIUM (Trung bình)</option>
                 <option value="HIGH">HIGH (Cao)</option>
               </select>
+              {errors.priority && <span className="form-error">{errors.priority.message}</span>}
             </div>
           </div>
 
@@ -237,9 +216,8 @@ function UpdateTask() {
               <label htmlFor="taskHandlerId">Người Xử Lý (Handler):</label>
               <select
                 id="taskHandlerId"
-                className="update-form-select"
-                value={handlerId}
-                onChange={(e) => setHandlerId(e.target.value)}
+                className={`update-form-select ${errors.handlerId ? 'has-error' : ''}`}
+                {...register('handlerId')}
               >
                 <option value="">-- Chọn người xử lý --</option>
                 {users.map((u) => (
@@ -248,15 +226,15 @@ function UpdateTask() {
                   </option>
                 ))}
               </select>
+              {errors.handlerId && <span className="form-error">{errors.handlerId.message}</span>}
             </div>
 
             <div className="update-form-group">
               <label htmlFor="taskCreatorId">Người Tạo (Creator):</label>
               <select
                 id="taskCreatorId"
-                className="update-form-select"
-                value={creatorId}
-                onChange={(e) => setCreatorId(e.target.value)}
+                className={`update-form-select ${errors.creatorId ? 'has-error' : ''}`}
+                {...register('creatorId')}
               >
                 <option value="">-- Chọn người tạo việc --</option>
                 {users.map((u) => (
@@ -265,6 +243,7 @@ function UpdateTask() {
                   </option>
                 ))}
               </select>
+              {errors.creatorId && <span className="form-error">{errors.creatorId.message}</span>}
             </div>
           </div>
 
@@ -283,9 +262,9 @@ function UpdateTask() {
             <button
               type="submit"
               className="btn-update submit"
-              disabled={submitting || !taskId}
+              disabled={updateMutation.isPending || !taskId}
             >
-              {submitting ? 'Đang lưu...' : 'Lưu Thay Đổi'}
+              {updateMutation.isPending ? 'Đang lưu...' : 'Lưu Thay Đổi'}
             </button>
           </div>
         </form>

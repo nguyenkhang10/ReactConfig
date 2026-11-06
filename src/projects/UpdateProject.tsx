@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, {useState} from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProject, updateProject } from '../api/projectsApi';
 import { getUsers } from '../api/userApi';
 import './updateProject.css';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { projectSchema, type ProjectForm } from '../schemas/projectSchema';
 
 function UpdateProject() {
   const { id: routeId } = useParams<{ id?: string }>();
@@ -12,13 +15,6 @@ function UpdateProject() {
 
   const [manualIdInput, setManualIdInput] = useState<string>(routeId || '');
 
-  // Form fields (still plain state, because the user edits them)
-  const [projectName, setProjectName] = useState<string>('');
-  const [projectDescription, setProjectDescription] = useState<string>('');
-  const [projectStatus, setProjectStatus] = useState<string>('PLANNING');
-  const [projectOwner, setProjectOwner] = useState<string>('');
-  const [projectStartDate, setProjectStartDate] = useState<string>('');
-  const [projectDeadline, setProjectDeadline] = useState<string>('');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // READ: users for the owner dropdown
@@ -36,17 +32,17 @@ function UpdateProject() {
     refetchOnWindowFocus: false,   // don't overwrite what the user is typing
   });
 
-  // When the project arrives, copy its values into the form
-  useEffect(() => {
-    if (project) {
-      setProjectName(project.name || '');
-      setProjectDescription(project.description || '');
-      setProjectStatus(project.status || 'PLANNING');
-      setProjectOwner(project.owner || '');
-      setProjectStartDate(project.startDate || '');
-      setProjectDeadline(project.dueDate || '');
-    }
-  }, [project]);
+  const { register, handleSubmit, formState: { errors } } = useForm<ProjectForm>({
+  resolver: zodResolver(projectSchema),
+  values: project && {
+    name: project.name ?? '',
+    description: project.description ?? '',
+    status: project.status ?? 'PLANNING',
+    owner: project.owner ?? '',
+    startDate: project.startDate ?? '',
+    dueDate: project.dueDate ?? '',
+  },
+});
 
   // CHANGE: save the edits
   const updateMutation = useMutation({
@@ -66,22 +62,18 @@ function UpdateProject() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!routeId) return;
-    setSuccessMessage(null);
-    updateMutation.mutate({
-      id: routeId,
-      data: {
-        name: projectName,
-        description: projectDescription,
-        status: projectStatus,
-        owner: projectOwner,
-        startDate: projectStartDate || null,
-        dueDate: projectDeadline || null,
-      },
-    });
-  };
+  const onSubmit = (data: ProjectForm) => {
+  if (!routeId) return;
+  setSuccessMessage(null);
+  updateMutation.mutate({
+    id: routeId,
+    data: {
+      ...data,
+      startDate: data.startDate || null,
+      dueDate: data.dueDate || null,
+    },
+  });
+};
 
   // One error message from whichever thing failed
   let errorMessage: string | null = null;
@@ -133,7 +125,7 @@ function UpdateProject() {
           ⏳ Đang tải dữ liệu dự án...
         </div>
       ) : (
-        <form className="update-projects-form" onSubmit={handleSubmit}>
+        <form className="update-projects-form" onSubmit={handleSubmit(onSubmit)} noValidate>
           <div className="update-form-group">
             <label htmlFor="projectName">Tên Dự Án (*):</label>
             <input
@@ -141,10 +133,9 @@ function UpdateProject() {
               id="projectName"
               placeholder="Nhập tên dự án"
               className="update-form-input"
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              required
+              {...register('name')}
             />
+            {errors.name && <span className="form-error">{errors.name.message}</span>}
           </div>
 
           <div className="update-form-group">
@@ -153,8 +144,7 @@ function UpdateProject() {
               id="projectDescription"
               placeholder="Nhập mô tả dự án"
               className="update-form-textarea"
-              value={projectDescription}
-              onChange={(e) => setProjectDescription(e.target.value)}
+              {...register('description')}
             />
           </div>
 
@@ -163,8 +153,7 @@ function UpdateProject() {
             <select
               id="projectStatus"
               className="update-form-select"
-              value={projectStatus}
-              onChange={(e) => setProjectStatus(e.target.value)}
+              {...register('status')}
             >
               <option value="PLANNING">Planning (Đang lập kế hoạch)</option>
               <option value="ACTIVE">Active (Đang thực hiện)</option>
@@ -179,13 +168,11 @@ function UpdateProject() {
             <select
               id="projectOwner"
               className="update-form-select"
-              value={projectOwner}
-              onChange={(e) => setProjectOwner(e.target.value)}
-              required
+              {...register('owner')}
             >
               <option value="">-- Chọn chủ nhiệm dự án --</option>
-              {projectOwner && !users.some((u) => (u.fullName || u.username) === projectOwner) && (
-                <option value={projectOwner}>{projectOwner}</option>
+              {project?.owner && !users.some((u) => (u.fullName || u.username) === project.owner) && (
+                <option value={project.owner}>{project.owner}</option>
               )}
               {users.map((u) => (
                 <option key={u.id} value={u.fullName || u.username}>
@@ -193,6 +180,7 @@ function UpdateProject() {
                 </option>
               ))}
             </select>
+            {errors.owner && <span className="form-error">{errors.owner.message}</span>}
           </div>
 
           <div className="update-dates-row">
@@ -202,8 +190,7 @@ function UpdateProject() {
                 type="date"
                 id="projectStartDate"
                 className="update-form-input"
-                value={projectStartDate}
-                onChange={(e) => setProjectStartDate(e.target.value)}
+                {...register('startDate')}
               />
             </div>
 
@@ -213,9 +200,9 @@ function UpdateProject() {
                 type="date"
                 id="projectDeadline"
                 className="update-form-input"
-                value={projectDeadline}
-                onChange={(e) => setProjectDeadline(e.target.value)}
+                {...register('dueDate')}
               />
+              {errors.dueDate && <span className="form-error">{errors.dueDate.message}</span>}
             </div>
           </div>
 

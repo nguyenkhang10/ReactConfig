@@ -1,53 +1,44 @@
-import { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getTaskById, deleteTask } from '../api/taskApi';
-import type { Task } from '../api/taskApi';
 import '../projects/deleteProject.css';
 import './tasks.css';
 
 function DeleteTask() {
   const { projectId, taskId: routeTaskId } = useParams<{ projectId?: string; taskId?: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const [taskId, setTaskId] = useState<string>(routeTaskId || '');
   const [inputLookupId, setInputLookupId] = useState<string>(routeTaskId || '');
-  const [task, setTask] = useState<Task | null>(null);
-  const [currentProjectId, setCurrentProjectId] = useState<string>(projectId || '');
-
-  const [loading, setLoading] = useState<boolean>(false);
-  const [deleting, setDeleting] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchTask = async (id: string) => {
-      setLoading(true);
-      setErrorMessage(null);
-      setSuccessMessage(null);
-      try {
-        const data = await getTaskById(id);
-        setTask(data);
-        setTaskId(String(id));
-        if (data.projectId) {
-          setCurrentProjectId(String(data.projectId));
-        }
-      } catch (err: any) {
-        console.error('Error fetching task to delete:', err);
-        if (err?.response?.status === 404) {
-          setErrorMessage(`Không tìm thấy nhiệm vụ với ID #${id}.`);
-        } else {
-          setErrorMessage('Không thể tải thông tin nhiệm vụ. Vui lòng thử lại.');
-        }
-        setTask(null);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // READ: load task to confirm
+  const { data: task, isLoading, error: queryError } = useQuery({
+    queryKey: ['task', routeTaskId],
+    queryFn: () => getTaskById(routeTaskId!),
+    enabled: !!routeTaskId,
+    retry: false,
+  });
 
-    if (routeTaskId) {
-      fetchTask(routeTaskId);
-    }
-  }, [routeTaskId]);
+  // Derive currentProjectId: prefer route param, fallback to task data
+  const currentProjectId = projectId || (task?.projectId ? String(task.projectId) : undefined);
+
+  // WRITE: delete task
+  const deleteMutation = useMutation({
+    mutationFn: deleteTask,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      setSuccessMessage(`Nhiệm vụ #${routeTaskId} đã được xóa thành công.`);
+      setTimeout(() => {
+        if (currentProjectId) {
+          navigate(`/projects/${currentProjectId}/tasks`);
+        } else {
+          navigate('/projects');
+        }
+      }, 1200);
+    },
+  });
 
   const handleLookupSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,37 +49,26 @@ function DeleteTask() {
       } else {
         navigate(`/tasks/delete/${cleanId}`);
       }
-      setTaskId(cleanId);
     }
   };
 
-  const handleDeleteConfirm = async () => {
-    if (!taskId) return;
-
-    setDeleting(true);
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    try {
-      await deleteTask(taskId);
-      setSuccessMessage(`Nhiệm vụ #${taskId} đã được xóa thành công.`);
-      setTask(null);
-      setTimeout(() => {
-        if (currentProjectId) {
-          navigate(`/projects/${currentProjectId}/tasks`);
-        } else {
-          navigate('/projects');
-        }
-      }, 1200);
-    } catch (err: any) {
-      console.error('Error deleting task:', err);
-      setErrorMessage(
-        err?.response?.data?.message || 'Có lỗi xảy ra khi xóa nhiệm vụ. Vui lòng thử lại.'
-      );
-    } finally {
-      setDeleting(false);
-    }
+  const handleDeleteConfirm = () => {
+    if (!routeTaskId) return;
+    deleteMutation.mutate(routeTaskId);
   };
+
+  // Combine errors into one message
+  let errorMessage: string | null = null;
+  if (deleteMutation.isError) {
+    errorMessage =
+      (deleteMutation.error as any)?.response?.data?.message ||
+      'Có lỗi xảy ra khi xóa nhiệm vụ. Vui lòng thử lại.';
+  } else if (queryError) {
+    errorMessage =
+      (queryError as any)?.response?.status === 404
+        ? `Không tìm thấy nhiệm vụ với ID #${routeTaskId}.`
+        : 'Không thể tải thông tin nhiệm vụ. Vui lòng thử lại.';
+  }
 
   return (
     <div className="delete-project-container">
@@ -135,13 +115,13 @@ function DeleteTask() {
         {successMessage && <div className="delete-alert success">✅ {successMessage}</div>}
         {errorMessage && <div className="delete-alert error">⚠️ {errorMessage}</div>}
 
-        {loading && (
+        {isLoading && (
           <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
             ⏳ Đang tải thông tin nhiệm vụ...
           </div>
         )}
 
-        {!loading && task && (
+        {!isLoading && task && !deleteMutation.isSuccess && (
           <div className="delete-confirm-card">
             <div className="delete-card-banner">
               <div className="delete-warning-icon">⚠️</div>
@@ -194,7 +174,7 @@ function DeleteTask() {
                         : '/projects'
                     )
                   }
-                  disabled={deleting}
+                  disabled={deleteMutation.isPending}
                 >
                   Hủy bỏ
                 </button>
@@ -202,9 +182,9 @@ function DeleteTask() {
                   type="button"
                   className="btn-delete-action danger"
                   onClick={handleDeleteConfirm}
-                  disabled={deleting}
+                  disabled={deleteMutation.isPending}
                 >
-                  {deleting ? 'Đang xóa...' : '🗑️ Xác nhận xóa nhiệm vụ'}
+                  {deleteMutation.isPending ? 'Đang xóa...' : '🗑️ Xác nhận xóa nhiệm vụ'}
                 </button>
               </div>
             </div>

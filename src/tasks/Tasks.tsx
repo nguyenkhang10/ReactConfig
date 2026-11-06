@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { getTasksByProject } from '../api/taskApi';
-import type { Task } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import type { User } from '../api/userApi';
 import AppNavbar from '../components/AppNavbar';
@@ -11,51 +11,22 @@ function Tasks() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
 
-  const [tasks, setTasks] = useState<Task[] | null>(null);
-  const [userMap, setUserMap] = useState<Map<number, User>>(new Map());
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    // Fetch users for name lookup
-    const fetchUsers = async () => {
-      try {
-        const userList = await getUsers();
-        const map = new Map<number, User>();
-        userList.forEach((u) => map.set(u.id, u));
-        setUserMap(map);
-      } catch (err) {
-        console.error('Error fetching users for name lookup:', err);
-      }
-    };
-    fetchUsers();
-  }, []);
+  const { data: tasks, isLoading, isError } = useQuery({
+    queryKey: ['tasks', projectId],
+    queryFn: () => getTasksByProject(projectId!),
+    enabled: !!projectId,
+  });
 
-  useEffect(() => {
-    const fetchTasks = async () => {
-      if (!projectId) {
-        setErrorMessage('Thiếu mã dự án (projectId) trên đường dẫn URL.');
-        setLoading(false);
-        return;
-      }
+  const { data: userList } = useQuery({
+    queryKey: ['users'],
+    queryFn: getUsers,
+  });
 
-      try {
-        setLoading(true);
-        setErrorMessage(null);
-        const data = await getTasksByProject(projectId);
-        setTasks(data);
-      } catch (error) {
-        console.error('Error fetching tasks by project:', error);
-        setErrorMessage('Không thể tải danh sách nhiệm vụ của dự án này. Vui lòng kiểm tra kết nối.');
-        setTasks([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchTasks();
-  }, [projectId]);
+  const userMap: Map<number, User> = new Map(
+    (userList ?? []).map((u) => [u.id, u])
+  );
 
   /** Returns display name for a given userId */
   const getUserName = (userId?: number | null): string => {
@@ -86,13 +57,11 @@ function Tasks() {
     );
   }
 
-  const filteredTasks = tasks
-    ? tasks.filter(
-      (t) =>
-        t.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.description?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    : [];
+  const filteredTasks = (tasks ?? []).filter(
+    (t) =>
+      t.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      t.description?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="tasks-container">
@@ -158,7 +127,7 @@ function Tasks() {
         </div>
 
         {/* Error notification */}
-        {errorMessage && (
+        {isError && (
           <div
             style={{
               padding: '14px 18px',
@@ -169,12 +138,12 @@ function Tasks() {
               fontSize: '14px',
             }}
           >
-            ⚠️ {errorMessage}
+            ⚠️ Không thể tải danh sách nhiệm vụ của dự án này. Vui lòng kiểm tra kết nối.
           </div>
         )}
 
         {/* Loading State */}
-        {loading ? (
+        {isLoading ? (
           <div className="tasks-table-wrapper" style={{ padding: '40px', textAlign: 'center' }}>
             <div style={{ fontSize: '28px', marginBottom: '8px' }}>⏳</div>
             <div style={{ fontWeight: 600, color: '#475569' }}>Đang tải danh sách nhiệm vụ...</div>

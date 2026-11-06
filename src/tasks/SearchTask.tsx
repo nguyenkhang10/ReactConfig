@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { searchTasks } from '../api/taskApi';
-import type { Task } from '../api/taskApi';
 import { getUsers } from '../api/userApi';
 import type { User } from '../api/userApi';
 import AppNavbar from '../components/AppNavbar';
@@ -22,10 +22,20 @@ const TASK_PRIORITY_OPTIONS = [
   { label: 'HIGH (Cao)', value: 'HIGH' },
 ];
 
+interface TaskSearchFiltersState {
+  keyword: string;
+  status: string;
+  priority: string;
+  projectId: string;
+  handlerId: string;
+  creatorId: string;
+}
+
 function SearchTask() {
   const { projectId: routeProjectId } = useParams<{ projectId?: string }>();
   const navigate = useNavigate();
 
+  // What the user is typing
   const [keyword, setKeyword] = useState<string>('');
   const [status, setStatus] = useState<string>('');
   const [priority, setPriority] = useState<string>('');
@@ -33,60 +43,46 @@ function SearchTask() {
   const [handlerId, setHandlerId] = useState<string>('');
   const [creatorId, setCreatorId] = useState<string>('');
 
-  const [tasks, setTasks] = useState<Task[] | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
-  const [userMap, setUserMap] = useState<Map<number, User>>(new Map());
-  const [loading, setLoading] = useState<boolean>(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // What was actually applied (changes only on submit, reset or chip click)
+  const [appliedFilters, setAppliedFilters] = useState<TaskSearchFiltersState>({
+    keyword: '',
+    status: '',
+    priority: '',
+    projectId: routeProjectId || '',
+    handlerId: '',
+    creatorId: '',
+  });
 
-  const executeSearch = useCallback(
-    async (
-      searchKeyword: string,
-      searchStatus: string,
-      searchPriority: string,
-      searchProjectId: string,
-      searchHandlerId: string,
-      searchCreatorId: string
-    ) => {
-      setLoading(true);
-      setErrorMessage(null);
-      try {
-        const filters = {
-          keyword: searchKeyword,
-          status: searchStatus,
-          priority: searchPriority,
-          projectId: searchProjectId ? Number(searchProjectId) : undefined,
-          handlerId: searchHandlerId ? Number(searchHandlerId) : undefined,
-          creatorId: searchCreatorId ? Number(searchCreatorId) : undefined,
-        };
-        const results = await searchTasks(filters);
-        setTasks(results);
-      } catch (err: any) {
-        console.error('Error executing task search:', err);
-        setErrorMessage('Không thể tìm kiếm nhiệm vụ. Vui lòng thử lại sau.');
-        setTasks([]);
-      } finally {
-        setLoading(false);
-      }
-    },
-    []
-  );
+  const queryKey = routeProjectId
+    ? ['tasks', routeProjectId, appliedFilters]
+    : ['tasks', appliedFilters];
 
-  // Fetch user list for dropdown and name lookup
-  useEffect(() => {
-    const fetchUsers = async () => {
-      try {
-        const userList = await getUsers();
-        setUsers(userList);
-        const map = new Map<number, User>();
-        userList.forEach((u) => map.set(u.id, u));
-        setUserMap(map);
-      } catch (err) {
-        console.error('Error fetching users for search filter:', err);
-      }
-    };
-    fetchUsers();
-  }, []);
+  const {
+    data: tasks,
+    isLoading,
+    isFetching,
+    isError,
+  } = useQuery({
+    queryKey,
+    queryFn: () =>
+      searchTasks({
+        keyword: appliedFilters.keyword.trim() || undefined,
+        status: appliedFilters.status || undefined,
+        priority: appliedFilters.priority || undefined,
+        projectId: appliedFilters.projectId ? Number(appliedFilters.projectId) : undefined,
+        handlerId: appliedFilters.handlerId ? Number(appliedFilters.handlerId) : undefined,
+        creatorId: appliedFilters.creatorId ? Number(appliedFilters.creatorId) : undefined,
+      }),
+    placeholderData: keepPreviousData,
+  });
+
+  // Fetch users for dropdown and handler name lookup
+  const { data: users = [] } = useQuery({
+    queryKey: ['users'],
+    queryFn: getUsers,
+  });
+
+  const userMap: Map<number, User> = new Map(users.map((u) => [u.id, u]));
 
   /** Returns display name for a given userId */
   const getUserName = (userId?: number | null): string => {
@@ -96,30 +92,18 @@ function SearchTask() {
     return u.fullName ? `${u.fullName} (@${u.username})` : `@${u.username}`;
   };
 
-  // Initial load via async/await
-  useEffect(() => {
-    const fetchInitialTasks = async () => {
-      setLoading(true);
-      setErrorMessage(null);
-      try {
-        const initialProjectId = routeProjectId ? Number(routeProjectId) : undefined;
-        const data = await searchTasks({ projectId: initialProjectId });
-        setTasks(data);
-      } catch (err) {
-        console.error('Error on initial task load:', err);
-        setErrorMessage('Không thể tải danh sách nhiệm vụ.');
-        setTasks([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInitialTasks();
-  }, [routeProjectId]);
+  const errorMessage = isError ? 'Không thể tìm kiếm nhiệm vụ. Vui lòng thử lại sau.' : null;
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    executeSearch(keyword, status, priority, projectId, handlerId, creatorId);
+    setAppliedFilters({
+      keyword,
+      status,
+      priority,
+      projectId: routeProjectId || projectId,
+      handlerId,
+      creatorId,
+    });
   };
 
   const handleReset = () => {
@@ -129,19 +113,40 @@ function SearchTask() {
     setHandlerId('');
     setCreatorId('');
     setProjectId(routeProjectId || '');
-    executeSearch('', '', '', routeProjectId || '', '', '');
+    setAppliedFilters({
+      keyword: '',
+      status: '',
+      priority: '',
+      projectId: routeProjectId || '',
+      handlerId: '',
+      creatorId: '',
+    });
   };
 
   const handleQuickStatus = (st: string) => {
     const next = status === st ? '' : st;
     setStatus(next);
-    executeSearch(keyword, next, priority, projectId, handlerId, creatorId);
+    setAppliedFilters({
+      keyword,
+      status: next,
+      priority,
+      projectId: routeProjectId || projectId,
+      handlerId,
+      creatorId,
+    });
   };
 
   const handleQuickPriority = (pr: string) => {
     const next = priority === pr ? '' : pr;
     setPriority(next);
-    executeSearch(keyword, status, next, projectId, handlerId, creatorId);
+    setAppliedFilters({
+      keyword,
+      status,
+      priority: next,
+      projectId: routeProjectId || projectId,
+      handlerId,
+      creatorId,
+    });
   };
 
   return (
@@ -289,9 +294,9 @@ function SearchTask() {
               <button
                 type="submit"
                 className="btn-search-submit"
-                disabled={loading}
+                disabled={isFetching}
               >
-                {loading ? 'Đang tìm...' : 'Tìm kiếm'}
+                {isFetching ? 'Đang tìm...' : 'Tìm kiếm'}
               </button>
             </div>
           </form>
@@ -317,14 +322,14 @@ function SearchTask() {
           <div className="results-count-text">
             Kết quả:{' '}
             <span className="results-count-number">
-              {tasks !== null ? tasks.length : '...'}
+              {tasks ? tasks.length : 0}
             </span>{' '}
             nhiệm vụ
           </div>
         </div>
 
         {/* Results Table or Empty State */}
-        {loading && tasks === null ? (
+        {isLoading ? (
           <div className="search-empty-state">
             <div className="search-empty-icon">⏳</div>
             <h3 className="search-empty-title">Đang tải kết quả tìm kiếm...</h3>
