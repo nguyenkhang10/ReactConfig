@@ -5,7 +5,7 @@ import { logout } from '../store/authSlice';
 // 1. Create the instance with base configurations
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '',
-  timeout: 10000, // Timeout request after 10 seconds
+  timeout: 90000, // Timeout request after 90 seconds
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
